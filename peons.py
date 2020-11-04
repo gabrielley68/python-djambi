@@ -1,36 +1,12 @@
 import abc
 
 
-class Pion(abc.ABC):
+class Peon(abc.ABC):
     def __init__(self, board, position: tuple, color: str):
         self.board = board
         self.alive = True
-        self.position: position
-        self.color: color
-
-    @property
-    def alive(self) -> bool:
-        return self.alive
-
-    @alive.setter
-    def alive(self, alive: bool):
-        self.alive = alive
-
-    @property
-    def position(self) -> tuple:
-        return self.position
-
-    @position.setter
-    def position(self, value: tuple):
-        self.position = value
-
-    @property
-    def color(self) -> str:
-        return self.color
-
-    @color.setter
-    def color(self, value: str):
-        self.color = value
+        self.position = position
+        self.color = color
 
     @abc.abstractmethod
     def available_moves(self):
@@ -40,8 +16,11 @@ class Pion(abc.ABC):
     def after_move(self):
         pass
 
+    def __repr__(self):
+        return f"{type(self).__name__} {self.color}{' dead' if not self.alive else ''}"
 
-class Militant(Pion):
+
+class Militant(Peon):
     def available_moves(self):
         pass
 
@@ -49,7 +28,7 @@ class Militant(Pion):
         pass
 
 
-class Assassin(Pion):
+class Assassin(Peon):
     def available_moves(self):
         pass
 
@@ -57,7 +36,7 @@ class Assassin(Pion):
         pass
 
 
-class Chef(Pion):
+class Chief(Peon):
     def available_moves(self):
         pass
 
@@ -65,7 +44,7 @@ class Chef(Pion):
         pass
 
 
-class Reporter(Pion):
+class Reporter(Peon):
     def available_moves(self):
         pass
 
@@ -73,7 +52,7 @@ class Reporter(Pion):
         pass
 
 
-class Diplomate(Pion):
+class Diplomat(Peon):
     def available_moves(self):
         pass
 
@@ -81,9 +60,28 @@ class Diplomate(Pion):
         pass
 
 
-class Necromobile(Pion):
+class Necromobile(Peon):
     def available_moves(self):
         pass
 
     def after_move(self):
         pass
+
+
+def peon_factory(board, peon_type: str, color: str, position: tuple) -> Peon:
+    """
+    Initialize a peon with a string representing its type and its constructor arguments
+    :param board:
+    :param peon_type:
+    :param color:
+    :param position:
+    :return:
+    """
+    return {
+        'chief': Chief,
+        'assassin': Assassin,
+        'reporter': Reporter,
+        'militant': Militant,
+        'diplomat': Diplomat,
+        'necromobile': Necromobile
+    }[peon_type](board, position, color)
