@@ -16,6 +16,11 @@ class Peon(abc.ABC):
     def after_move(self):
         pass
 
+    @property
+    @abc.abstractmethod
+    def image_path(self):
+        pass
+
     def __repr__(self):
         return f"{type(self).__name__} {self.color}{' dead' if not self.alive else ''}"
 
@@ -27,6 +32,9 @@ class Militant(Peon):
     def after_move(self):
         pass
 
+    def image_path(self):
+        return "assets/icons/militant.png"
+
 
 class Assassin(Peon):
     def available_moves(self):
@@ -34,6 +42,9 @@ class Assassin(Peon):
 
     def after_move(self):
         pass
+
+    def image_path(self):
+        return "assets/icons/assassin.png"
 
 
 class Chief(Peon):
@@ -43,6 +54,9 @@ class Chief(Peon):
     def after_move(self):
         pass
 
+    def image_path(self):
+        return "assets/icons/chief.png"
+
 
 class Reporter(Peon):
     def available_moves(self):
@@ -51,13 +65,19 @@ class Reporter(Peon):
     def after_move(self):
         pass
 
+    def image_path(self):
+        return "assets/icons/reporter.png"
 
-class Diplomat(Peon):
+
+class Diplomate(Peon):
     def available_moves(self):
         pass
 
     def after_move(self):
         pass
+
+    def image_path(self):
+        return "assets/icons/diplomate.png"
 
 
 class Necromobile(Peon):
@@ -66,6 +86,9 @@ class Necromobile(Peon):
 
     def after_move(self):
         pass
+
+    def image_path(self):
+        return "assets/icons/necromobile.png"
 
 
 def peon_factory(board, peon_type: str, color: str, position: tuple) -> Peon:
@@ -82,6 +105,6 @@ def peon_factory(board, peon_type: str, color: str, position: tuple) -> Peon:
         'assassin': Assassin,
         'reporter': Reporter,
         'militant': Militant,
-        'diplomat': Diplomat,
+        'diplomat': Diplomate,
         'necromobile': Necromobile
     }[peon_type](board, position, color)
