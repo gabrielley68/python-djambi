@@ -1,4 +1,7 @@
 class Team:
+    """
+    A team, represented by it's color
+    """
     def __init__(self, color):
         self.color = color
 
