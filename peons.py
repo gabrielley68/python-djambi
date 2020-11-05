@@ -2,11 +2,11 @@ import abc
 
 
 class Peon(abc.ABC):
-    def __init__(self, board, position: tuple, color: str):
+    def __init__(self, board, position: tuple, team):
         self.board = board
         self.alive = True
         self.position = position
-        self.color = color
+        self.team = team
 
     @abc.abstractmethod
     def available_moves(self):
@@ -22,7 +22,7 @@ class Peon(abc.ABC):
         pass
 
     def __repr__(self):
-        return f"{type(self).__name__} {self.color}{' dead' if not self.alive else ''}"
+        return f"{type(self).__name__} {self.team}{' dead' if not self.alive else ''}"
 
 
 class Militant(Peon):
@@ -91,7 +91,7 @@ class Necromobile(Peon):
         return "assets/icons/necromobile.png"
 
 
-def peon_factory(board, peon_type: str, color: str, position: tuple) -> Peon:
+def peon_factory(board, peon_type: str, team, position: tuple) -> Peon:
     """
     Initialize a peon with a string representing its type and its constructor arguments
     :param board:
@@ -107,4 +107,4 @@ def peon_factory(board, peon_type: str, color: str, position: tuple) -> Peon:
         'militant': Militant,
         'diplomat': Diplomate,
         'necromobile': Necromobile
-    }[peon_type](board, position, color)
+    }[peon_type](board, position, team)

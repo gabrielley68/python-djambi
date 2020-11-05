@@ -5,13 +5,12 @@ from team import *
 import const
 
 
-teams = [Team(color) for color in const.COLORS]
-board = Board()
+board = Board(
+    data_file='initial_board.data',
+    teams=[Team(color) for color in const.COLORS],
+)
 
 window = Tk()
-
-for row_idx, row in enumerate(board.cells):
-    for col_idx, cell in enumerate(row):
-        cell.render(window).grid(row=row_idx, column=col_idx)
+board.render(window)
 
 window.mainloop()
