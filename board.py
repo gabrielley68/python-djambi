@@ -4,10 +4,17 @@ import sys
 import const
 from peons import peon_factory
 from team import Team
-from utils import ImageCache, get_adjacent_alive_enemies
+from utils import ImageCache, get_adjacent_alive_enemies, is_surrounded_by_bodies
 
 
 class BoardCell:
+    """
+    A cell of the board.
+    A cell can contains nothing or up to 2 peons
+    When a peon come on a cell to kill or replace a peon, we store both of them on the Cell while the player
+    choose where to move the old one).
+    Those are stored on the tuple(?Peon, ?Peon)
+    """
     def __init__(self, image_cache, initial_peon=None):
         self.peons = (initial_peon, None)
         self.image_cache = image_cache
@@ -16,8 +23,8 @@ class BoardCell:
     def render(self, master, board):
         """
         Return a tkinter representation of the cell
-        :param master:
-        :param board: the board, necessary to create the callbacks
+        :param master: the Tk container
+        :param board: the board, necessary to create the on_click events callbacks
         :return: tkinter.Button
         """
         # images must stay in memory to be displayed by tkinter so keep a reference in the class
@@ -41,8 +48,8 @@ class BoardCell:
     @property
     def primary_peon(self):
         """
-        Return the main peon of the cell. There may be 0, 1 or 2 peons.
-        :return:
+        Return the main peon of the cell if there's one.
+        :return: Peon
         """
         return self.peons[0]
 
@@ -50,7 +57,7 @@ class BoardCell:
     def secondary_peon(self):
         """
         Return the second peon on the cell if there's one.
-        :return:
+        :return: Peon
         """
         return self.peons[1]
 
@@ -58,16 +65,14 @@ class BoardCell:
     def position(self):
         """
         Get coordinates in the grid
-        :return:
+        :return: tuple(int, int)
         """
         grid_info = self.tk_button.grid_info()
         return grid_info["row"], grid_info["column"]
 
     def redraw_image(self):
         """
-        Replace the current image on the tk button
-        :param peon:
-        :return:
+        Replace the current image on the tk button according to the cell's state
         """
         color = "#D3D3D3"
         if self.primary_peon and not self.primary_peon.alive:
@@ -83,16 +88,14 @@ class BoardCell:
     def update_tk(self, **kwargs):
         """
         Update the tk representation
-        :param kwargs:
-        :return:
+        :param kwargs: param: value
         """
         self.tk_button.configure(**kwargs)
 
     def handle_click(self, board):
         """
-        Callback onD button press
+        Callback on button press according to current board state
         :param board:
-        :return:
         """
         if board.state == const.BOARD_STATE_STANDARD:
             self.handle_click_standard(board)
@@ -103,46 +106,67 @@ class BoardCell:
 
     def handle_click_standard(self, board):
         """
-        Handles selecting and moving it's peon based on play turn
+        Player can select a peon and move it on the board
         :param board:
-        :return:
         """
         # Select a peon first
         if not board.selected_cell:
             # Empty cell
             if self.is_empty:
                 return
+            # Don't let move other player peons
             if self.primary_peon.team is not board.current_team:
                 return
+            # Can't move dead peons
             if self.primary_peon.alive:
                 board.select_peon(self)
+        # Peon is selected, select where to move it
         else:
             if (
                 self.primary_peon
                 and self.primary_peon.team is board.current_team
                 and self.primary_peon.alive
             ):
-                # Replace selected peon
+                # Replace selected peon if user changed his mind
                 board.select_peon(self)
             else:
+                # Peon have different movesets depending on it's type
                 if self.position in board.selected_cell.primary_peon.available_moves():
                     selected_peon = board.selected_cell.primary_peon
+                    # Remove the peon from its original position
                     board.selected_cell.peons = (None, None)
                     board.selected_cell.redraw_image()
+                    # Move it and activate its effect
                     board.move(selected_peon, self, activate_peon_after_move=True)
 
     def handle_click_moving_peon(self, board):
+        """
+        Move the current select peon to an empty cell
+        :param board:
+        """
         if self.is_empty:
             board.move(board.selected_cell.secondary_peon, self)
             board.next_turn()
 
     def handle_click_selecting_adjacent(self, board):
+        """
+        Reporter can select adjacent peons on move
+        :param board:
+        """
         if self.position in get_adjacent_alive_enemies(board.selected_cell.primary_peon):
             board.selected_cell.primary_peon.select_adjacent(self.primary_peon)
 
 
 class Board:
+    """
+    Contains the state of the whole game.
+    """
     def __init__(self, data_file, teams):
+        """
+        Initialise board with a text file representing initial peon positions
+        :param data_file: file path
+        :param teams: list[Team]
+        """
         self.cells = []
         self.teams_alive = teams
         self.current_team = teams[0]
@@ -150,6 +174,7 @@ class Board:
         self.selected_cell = None
         self.state = const.BOARD_STATE_STANDARD
 
+        # Initialize a cache to only load image once
         self.image_cache = ImageCache()
 
         with open(data_file) as initial_board:
@@ -160,7 +185,7 @@ class Board:
                     try:
                         peon, color = col_data.split("_")
                     except ValueError:
-                        print("Error parsing initial_board.data, please verify format", file=sys.stderr)
+                        print("Error parsing initial_board.txt, please verify format", file=sys.stderr)
                     if peon and color:
                         # Add peon according to their type
                         self.cells[row_idx].append(BoardCell(
@@ -195,9 +220,8 @@ class Board:
 
     def render(self, master):
         """
-        Return a tkinter representation
+        Return a tkinter representation of the♥2board
         :param master:
-        :return:
         """
         for row_idx, row in enumerate(self.cells):
             for col_idx, cell in enumerate(row):
@@ -211,7 +235,6 @@ class Board:
     def update_text(self):
         """
         Update the TK text according to board state
-        :return:
         """
         self._state_text_label.configure(text=self.get_state_text())
 
@@ -219,7 +242,6 @@ class Board:
         """
         Select a peon, making its cell's button 'sunken'
         :param cell:
-        :return:
         """
         if self.selected_cell:
             self.selected_cell.update_tk(
@@ -232,8 +254,18 @@ class Board:
         self.update_text()
 
     def next_turn(self):
+        """
+        End the current turn, changing current player
+        """
+        current_team_index = self.teams_alive.index(self.current_team)
         self.selected_cell = None
-        self.current_team = self.teams_alive[(self.teams_alive.index(self.current_team) + 1) % len(self.teams_alive)]
+        for row in self.cells:
+            for cell in row:
+                if cell.primary_peon and cell.primary_peon.die_if_surrounded_by_bodies:
+                    if is_surrounded_by_bodies(cell.primary_peon):
+                        cell.primary_peon.die(self.current_team)
+
+        self.current_team = self.teams_alive[(current_team_index + 1) % len(self.teams_alive)]
         self.state = const.BOARD_STATE_STANDARD
         self.update_text()
 

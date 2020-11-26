@@ -30,6 +30,13 @@ def get_cell_state(initial_cell, cell):
 
 
 def get_directions(board, initial_pos):
+    """
+    Return all directions possible from a given position
+    Vert, horiz and diag are implemented
+    :param board:
+    :param initial_pos:
+    :return:
+    """
     return (
         [(y, initial_pos[1]) for y in range(initial_pos[0] - 1, 0, -1)],  # vertical up
         [(y, initial_pos[1]) for y in range(initial_pos[0] + 1, len(board.cells))],  # vertical down
@@ -59,10 +66,10 @@ def get_available_moves(board, initial_pos, can_use_enemy=False, can_use_body=Fa
     Return a list of available move through a board
     :param initial_pos:
     :param board:
-    :param can_use_enemy:
-    :param can_use_body:
-    :param maximum_steps:
-    :return:
+    :param can_use_enemy: can move on enemy cells
+    :param can_use_body: can move on dead bodies
+    :param maximum_steps: maximum cells
+    :return: list(tuple(int, int))
     """
     available_moves = list()
 
@@ -94,26 +101,55 @@ def get_available_moves(board, initial_pos, can_use_enemy=False, can_use_body=Fa
     return available_moves
 
 
+def get_surroundings(board, initial_pos):
+    """
+    Return all positions around the given one
+    :param board:
+    :param initial_pos:
+    :return: list(tuple(int, int))
+    """
+    surroundings = list()
+    row_index, col_index = initial_pos
+    # Avoid going out of range
+    for y in range(max(0, row_index - 1), min(len(board.cells), row_index + 2)):
+        for x in range(max(0, col_index - 1), min(len(board.cells[y]), col_index + 2)):
+            # Don't include initial_pos
+            if (y, x) == initial_pos:
+                continue
+            surroundings.append((y, x))
+    return surroundings
+
+
 def get_adjacent_alive_enemies(peon):
     """
-    Get the position of all enemies peon that are alive
+    Get the position of all adjacent enemies peon that are alive
     :param peon:
-    :return:
     """
-    board = peon.board
     enemies_coordinates = list()
-    row_index, col_index = peon.position
-    for y in range(max(0, row_index-1), min(len(board.cells), row_index+2)):
-        for x in range(max(0, col_index-1), min(len(board.cells[y]), col_index+2)):
-            if (y, x) == peon.position:
-                continue
-            other_peon = board.cells[y][x].primary_peon
-            if not other_peon:
-                continue
-            if other_peon.team != peon.team and other_peon.alive:
-                enemies_coordinates.append(other_peon.position)
+    board = peon.board
+    for y, x in get_surroundings(board, peon.position):
+        other_peon = board.cells[y][x].primary_peon
+        if not other_peon:
+            continue
+        if other_peon.team != peon.team and other_peon.alive:
+            enemies_coordinates.append(other_peon.position)
 
     return enemies_coordinates
+
+
+def is_surrounded_by_bodies(peon):
+    """
+    :param peon:
+    :return: bool
+    """
+    board = peon.board
+    for y, x in get_surroundings(board, peon.position):
+        other_peon = board.cells[y][x].primary_peon
+        if not other_peon:
+            return False
+        if other_peon.alive:
+            return False
+    return True
 
 
 class ImageCache:

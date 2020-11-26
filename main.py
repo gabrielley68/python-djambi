@@ -6,7 +6,7 @@ import const
 
 
 board = Board(
-    data_file='initial_board.data',
+    data_file='initial_board.txt',
     teams=[Team(color) for color in const.COLORS],
 )
 
