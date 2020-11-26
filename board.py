@@ -4,7 +4,7 @@ import sys
 import const
 from peons import peon_factory
 from team import Team
-from utils import ImageCache
+from utils import ImageCache, get_adjacent_alive_enemies
 
 
 class BoardCell:
@@ -47,7 +47,15 @@ class BoardCell:
         return self.peons[0]
 
     @property
-    def coordinates(self):
+    def secondary_peon(self):
+        """
+        Return the second peon on the cell if there's one.
+        :return:
+        """
+        return self.peons[1]
+
+    @property
+    def position(self):
         """
         Get coordinates in the grid
         :return:
@@ -55,16 +63,21 @@ class BoardCell:
         grid_info = self.tk_button.grid_info()
         return grid_info["row"], grid_info["column"]
 
-    def redraw_image(self, peon=None):
+    def redraw_image(self):
         """
         Replace the current image on the tk button
         :param peon:
         :return:
         """
-        image = self.image_cache[peon.image_path if peon else None]
+        color = "#D3D3D3"
+        if self.primary_peon and not self.primary_peon.alive:
+            color = "#808080"
+        elif self.primary_peon:
+            color = const.COLORS_HEX[self.primary_peon.team.color]
+        image = self.image_cache[self.primary_peon.image_path if self.primary_peon else None]
         self.update_tk(
             image=image,
-            bg=const.COLORS_HEX[peon.team.color] if peon else '#D3D3D3',
+            bg=color,
         )
 
     def update_tk(self, **kwargs):
@@ -77,7 +90,20 @@ class BoardCell:
 
     def handle_click(self, board):
         """
-        Callback on button press
+        Callback onD button press
+        :param board:
+        :return:
+        """
+        if board.state == const.BOARD_STATE_STANDARD:
+            self.handle_click_standard(board)
+        elif board.state == const.BOARD_STATE_MOVING_PEON:
+            self.handle_click_moving_peon(board)
+        elif board.state == const.BOARD_STATE_SELECT_ADJACENT:
+            self.handle_click_selecting_adjacent(board)
+
+    def handle_click_standard(self, board):
+        """
+        Handles selecting and moving it's peon based on play turn
         :param board:
         :return:
         """
@@ -99,8 +125,20 @@ class BoardCell:
                 # Replace selected peon
                 board.select_peon(self)
             else:
-                if self.coordinates in board.selected_cell.primary_peon.available_moves():
-                    board.move(board.selected_cell, self)
+                if self.position in board.selected_cell.primary_peon.available_moves():
+                    selected_peon = board.selected_cell.primary_peon
+                    board.selected_cell.peons = (None, None)
+                    board.selected_cell.redraw_image()
+                    board.move(selected_peon, self, activate_peon_after_move=True)
+
+    def handle_click_moving_peon(self, board):
+        if self.is_empty:
+            board.move(board.selected_cell.secondary_peon, self)
+            board.next_turn()
+
+    def handle_click_selecting_adjacent(self, board):
+        if self.position in get_adjacent_alive_enemies(board.selected_cell.primary_peon):
+            board.selected_cell.primary_peon.select_adjacent(self.primary_peon)
 
 
 class Board:
@@ -110,6 +148,7 @@ class Board:
         self.current_team = teams[0]
         self._state_text_label = None
         self.selected_cell = None
+        self.state = const.BOARD_STATE_STANDARD
 
         self.image_cache = ImageCache()
 
@@ -146,6 +185,10 @@ class Board:
         """
         if len(self.teams_alive) == 1:
             return f"{self.teams_alive[0]} won !"
+        if self.state == const.BOARD_STATE_MOVING_PEON:
+            return f"Place {self.selected_cell.secondary_peon} on an empty cell"
+        elif self.state == const.BOARD_STATE_SELECT_ADJACENT:
+            return "Select an adjacent peon"
         if self.selected_cell:
             return f"{self.selected_cell.primary_peon} selected"
         return f"It's {self.current_team}'s turn"
@@ -191,18 +234,19 @@ class Board:
     def next_turn(self):
         self.selected_cell = None
         self.current_team = self.teams_alive[(self.teams_alive.index(self.current_team) + 1) % len(self.teams_alive)]
+        self.state = const.BOARD_STATE_STANDARD
         self.update_text()
 
-    def move(self, departure_cell, arrival_cell):
+    def move(self, peon, arrival_cell, activate_peon_after_move=False):
         """
         Move a peon from one cell to another
-        :param departure_cell:
+        :param peon:
         :param arrival_cell:
+        :param activate_peon_after_move:
         :return:
         """
-        departure_cell.redraw_image(None)
-        arrival_cell.redraw_image(departure_cell.primary_peon)
-        # TODO: Handle kills / Body drags
-        arrival_cell.peons = (departure_cell.primary_peon, None)
-        departure_cell.peons = (None, None)
-        self.next_turn()
+        peon.position = arrival_cell.position
+        arrival_cell.peons = (peon, arrival_cell.primary_peon)
+        arrival_cell.redraw_image()
+        if activate_peon_after_move:
+            peon.after_move()
